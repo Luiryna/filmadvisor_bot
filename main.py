@@ -7,6 +7,7 @@ import pycountry
 import random
 from validate_email import validate_email
 import tmdbsimple as tmdb
+from requests import get
 
 tmdb.API_KEY = '68c876f1625913a48af726dd8b1fb00d'
 
@@ -45,6 +46,11 @@ bot = telebot.TeleBot('1396092736:AAFXQ1JiGeZRpsVhxG7eOGmCQ1jYQaFF21k')
 user_dict = {}
 
 
+class CurrentMovie:
+    def __init__(self):
+        self.id = None
+
+
 class QuerySettings:
     def __init__(self):
         self.country = None
@@ -72,12 +78,20 @@ class QuerySettings:
         self.western = None
 
 
+class Movie:
+    def __init__(self, movie_id, watched, enjoy):
+        self.movie_id = movie_id
+        self.watched = watched
+        self.enjoy = enjoy
+
+
 class User:
     def __init__(self, chat_id):
         self.chat_id = chat_id
         self.name = None
         self.mail = None
         self.qSettings = QuerySettings()
+        self.movies = []
 
 
 @bot.message_handler(commands=['start'])
@@ -499,16 +513,32 @@ def call_suggest(message):
                        vote_average_gte=current_rating)
 
     print_suggestion(message, discover)
-    #    for s in discover.results:
-    #       print(s['title'], s['id'], s['release_date'], s['popularity'], s['genre_ids'])
 
 
 # ------------------------------------------------   PRINT SUGGESTION    -----------------------------------#
 def print_suggestion(message, discover):
     user = user_dict[message.chat.id]
     current_movie = random.choice(discover.results)
-    #    bot.send_message(message.chat.id, current_movie['title'], '\n', current_movie['release_date'], '\n',
-    #                     current_movie['overview'])
+    current_movie_id = current_movie['id']
+    CurrentMovie.id = current_movie_id
+    for movie in user.movies:
+        if movie.movie_id == current_movie_id:
+            current_movie = random.choice(discover.results)
+            current_movie_id = current_movie['id']
+
+    # Image
+    current_movie_for_picture = tmdb.Movies(current_movie_id)
+    img = current_movie_for_picture.images()
+    if img is not None:
+        img_backdrops = img['posters']
+        if len(img_backdrops) >= 1:
+            img_path = img_backdrops[1]
+            img_path2 = img_path['file_path']
+
+            img_url_part = 'https://image.tmdb.org/t/p/w500'
+            img_url = img_url_part + str(img_path2)
+            bot.send_photo(message.chat.id, get(img_url).content)
+
     bot.send_message(message.chat.id, current_movie['title'])
     bot.send_message(message.chat.id, current_movie['release_date'])
     bot.send_message(message.chat.id, current_movie['overview'])
@@ -523,19 +553,66 @@ def print_suggestion(message, discover):
 
     bot.send_message(message.from_user.id, text=mess, reply_markup=keyboard)
 
+    # ------------------------------------------------   TRASH MOVIE    -----------------------------------#
     @bot.message_handler(commands=['trash'])
     def call_trash(message):
+        movie_id = CurrentMovie.id
         type_of_correction = 'decrease'
+        watched = False
+        enjoy = False
         bot.send_message(message.from_user.id, text='Мы запомним!')
         for genre_id in current_movie['genre_ids']:
             weights_correction(message, type_of_correction, genre_id)
 
-        # надо будет вносить айди в БД в раздел гавна
-        current_movie_id = current_movie['id']
+        new_movie = Movie(movie_id, watched, enjoy)
+        user.movies.append(new_movie)
         main_menu(message)
 
-# ------------------------------------------------   TRASH MOVIE    -----------------------------------#
+    # ------------------------------------------------   WATCH LATER MOVIE    -----------------------------------#
+    @bot.message_handler(commands=['later'])
+    def call_trash(message):
+        movie_id = CurrentMovie.id
+        type_of_correction = 'increase'
+        watched = False
+        enjoy = True
+        bot.send_message(message.from_user.id, text='Хороший выбор, сохраним в список "Посмотреть позже"!')
+        for genre_id in current_movie['genre_ids']:
+            weights_correction(message, type_of_correction, genre_id)
 
+        new_movie = Movie(movie_id, watched, enjoy)
+        user.movies.append(new_movie)
+        main_menu(message)
+
+    # ---------------------------------------------   watched And its trash MOVIE    --------------------------------#
+    @bot.message_handler(commands=['watched_trash'])
+    def call_trash(message):
+        movie_id = CurrentMovie.id
+        type_of_correction = 'decrease'
+        watched = True
+        enjoy = False
+        bot.send_message(message.from_user.id, text='Принято, больше не будем рекомендовать этот фильм!')
+        for genre_id in current_movie['genre_ids']:
+            weights_correction(message, type_of_correction, genre_id)
+
+        new_movie = Movie(movie_id, watched, enjoy)
+        user.movies.append(new_movie)
+        main_menu(message)
+
+    # ---------------------------------------------   watched And its nice MOVIE    --------------------------------#
+    @bot.message_handler(commands=['watched_nice'])
+    def call_trash(message):
+        movie_id = CurrentMovie.id
+        type_of_correction = 'increase'
+        watched = True
+        enjoy = True
+        bot.send_message(message.from_user.id, text='Рады, что вам понравилось, будем рекомендовать вам больше '
+                                                    'фильмов в этом жанре!')
+        for genre_id in current_movie['genre_ids']:
+            weights_correction(message, type_of_correction, genre_id)
+
+        new_movie = Movie(movie_id, watched, enjoy)
+        user.movies.append(new_movie)
+        main_menu(message)
 
 
 # ------------------------------------------------   WEIGHTS CORRECTION    -----------------------------------#
@@ -630,8 +707,35 @@ def weights_correction(message, type_of_correction, genre_id):
 # ------------------------------------------------   STATISTICS    -----------------------------------#
 @bot.message_handler(commands=['stat'])
 def call_stat(message):
-    bot.send_message(message.from_user.id, text='в разработке')
-    main_menu(message)
+    mess = 'Что вы хотите узнать?. Выберите действие:\n' \
+           '/watch_later_list - список фильмов "Посмотреть позже"\n' \
+           '/watched_list - список просмотренных фильмов\n' \
+           '/trash_list - список непонравившихся фильмов\n' \
+           '/query_settings_list - сбросить настройки страны, даты и рейтинга\n' \
+           '/menu - вернуться в меню'
+
+    keyboard = telebot.types.ReplyKeyboardMarkup(True)
+    bot.send_message(message.from_user.id, text=mess, reply_markup=keyboard)
+
+
+# ------------------------------------------------   WATCH LATER LIST    -----------------------------------#
+
+@bot.message_handler(commands=['watch_later_list'])
+def ask_country(message):
+    user = user_dict[message.chat.id]
+    movie_list = 'Список "Посмотреть позже":\n'
+    for movie in user.movies:
+        print(movie.movie_id)
+
+    for movie in user.movies:
+        if movie.watched is False and movie.enjoy is True:
+            query_results = tmdb.Movies(movie.movie_id)
+            query_results.info()
+            current_movie = query_results.title
+            print(current_movie)
+            movie_list = movie_list + current_movie + '\n'
+    bot.send_message(message.chat.id, movie_list)
+    call_stat(message)
 
 
 # ------------------------------------------------   CALIBRATION    -----------------------------------#
