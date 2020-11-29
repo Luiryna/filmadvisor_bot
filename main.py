@@ -49,6 +49,7 @@ user_dict = {}
 class CurrentMovie:
     def __init__(self):
         self.id = None
+        self.genre_ids = []
 
 
 class QuerySettings:
@@ -139,7 +140,7 @@ def ask_name(get_name, message):
     keyboard.add(key_yes)
     key_no = types.InlineKeyboardButton(text='Нет', callback_data='no')
     keyboard.add(key_no)
-    question = "Это твое имя?\n" + user.name
+    question = "Это ваше имя?\n" + user.name
     bot.send_message(message.from_user.id, text=question, reply_markup=keyboard)
 
 
@@ -373,11 +374,12 @@ def get_genres_science_fiction(message):
         bot.reply_to(message, 'Оцените от 0 до 10. Ваша оценка?')
         bot.register_next_step_handler(message, get_genres_science_fiction)
         return
-    bot.send_message(message.chat.id, 'Как вы оцените жанр "ТВ шоу"?')
+    bot.send_message(message.chat.id, 'Как вы оцените жанр "Телефильм" (фильм, созданный специально для демонстрации '
+                                      'по сети телевизионного вещания?')
     bot.register_next_step_handler(message, get_genres_tv_movie)
 
 
-def get_genres_science_fiction(message):
+def get_genres_tv_movie(message):
     user = user_dict[message.chat.id]
     user.qSettings.science_fiction = message.text
 
@@ -385,20 +387,6 @@ def get_genres_science_fiction(message):
             user.qSettings.science_fiction) < 0:
         bot.reply_to(message, 'Оцените от 0 до 10. Ваша оценка?')
         bot.register_next_step_handler(message, get_genres_science_fiction)
-        return
-    bot.send_message(message.chat.id,
-                     'Как вы оцените жанр "Телефильм" (фильм, созданный специально для демонстрации по сети телевизионного вещания?')
-    bot.register_next_step_handler(message, get_genres_tv_movie)
-
-
-def get_genres_tv_movie(message):
-    user = user_dict[message.chat.id]
-    user.qSettings.tv_movie = message.text
-
-    if not user.qSettings.tv_movie.isdigit() or int(user.qSettings.tv_movie) > 10 or int(
-            user.qSettings.tv_movie) < 0:
-        bot.reply_to(message, 'Оцените от 0 до 10. Ваша оценка?')
-        bot.register_next_step_handler(message, get_genres_tv_movie)
         return
     bot.send_message(message.chat.id, 'Как вы оцените жанр "Триллер"?')
     bot.register_next_step_handler(message, get_genres_thriller)
@@ -521,6 +509,7 @@ def print_suggestion(message, discover):
     current_movie = random.choice(discover.results)
     current_movie_id = current_movie['id']
     CurrentMovie.id = current_movie_id
+    CurrentMovie.genre_ids = current_movie['genre_ids']
     for movie in user.movies:
         if movie.movie_id == current_movie_id:
             current_movie = random.choice(discover.results)
@@ -531,7 +520,7 @@ def print_suggestion(message, discover):
     img = current_movie_for_picture.images()
     if img is not None:
         img_backdrops = img['posters']
-        if len(img_backdrops) >= 1:
+        if len(img_backdrops) >= 2:
             img_path = img_backdrops[1]
             img_path2 = img_path['file_path']
 
@@ -561,7 +550,7 @@ def print_suggestion(message, discover):
         watched = False
         enjoy = False
         bot.send_message(message.from_user.id, text='Мы запомним!')
-        for genre_id in current_movie['genre_ids']:
+        for genre_id in CurrentMovie.genre_ids:
             weights_correction(message, type_of_correction, genre_id)
 
         new_movie = Movie(movie_id, watched, enjoy)
@@ -576,7 +565,7 @@ def print_suggestion(message, discover):
         watched = False
         enjoy = True
         bot.send_message(message.from_user.id, text='Хороший выбор, сохраним в список "Посмотреть позже"!')
-        for genre_id in current_movie['genre_ids']:
+        for genre_id in CurrentMovie.genre_ids:
             weights_correction(message, type_of_correction, genre_id)
 
         new_movie = Movie(movie_id, watched, enjoy)
@@ -591,7 +580,7 @@ def print_suggestion(message, discover):
         watched = True
         enjoy = False
         bot.send_message(message.from_user.id, text='Принято, больше не будем рекомендовать этот фильм!')
-        for genre_id in current_movie['genre_ids']:
+        for genre_id in CurrentMovie.genre_ids:
             weights_correction(message, type_of_correction, genre_id)
 
         new_movie = Movie(movie_id, watched, enjoy)
@@ -607,7 +596,8 @@ def print_suggestion(message, discover):
         enjoy = True
         bot.send_message(message.from_user.id, text='Рады, что вам понравилось, будем рекомендовать вам больше '
                                                     'фильмов в этом жанре!')
-        for genre_id in current_movie['genre_ids']:
+        for genre_id in CurrentMovie.genre_ids:
+            print(genre_id)
             weights_correction(message, type_of_correction, genre_id)
 
         new_movie = Movie(movie_id, watched, enjoy)
@@ -626,79 +616,79 @@ def weights_correction(message, type_of_correction, genre_id):
         correct_value = 1
 
     if genre_id == ACTION:
-        if not int(user.qSettings.action) > 9 or not int(user.qSettings.action) < 1:
+        if not int(user.qSettings.action) > 9 and not int(user.qSettings.action) < 1:
             user.qSettings.action = int(user.qSettings.action) + correct_value
 
     if genre_id == ADVENTURE:
-        if not int(user.qSettings.adventure) > 9 or not int(user.qSettings.adventure) < 1:
+        if not int(user.qSettings.adventure) > 9 and not int(user.qSettings.adventure) < 1:
             user.qSettings.adventure = int(user.qSettings.adventure) + correct_value
 
     if genre_id == ANIMATION:
-        if not int(user.qSettings.animation) > 9 or not int(user.qSettings.animation) < 1:
+        if not int(user.qSettings.animation) > 9 and not int(user.qSettings.animation) < 1:
             user.qSettings.animation = int(user.qSettings.animation) + correct_value
 
     if genre_id == COMEDY:
-        if not int(user.qSettings.comedy) > 9 or not int(user.qSettings.comedy) < 1:
+        if not int(user.qSettings.comedy) > 9 and not int(user.qSettings.comedy) < 1:
             user.qSettings.comedy = int(user.qSettings.comedy) + correct_value
 
     if genre_id == CRIME:
-        if not int(user.qSettings.crime) > 9 or not int(user.qSettings.adventure) < 1:
+        if not int(user.qSettings.crime) > 9 and not int(user.qSettings.adventure) < 1:
             user.qSettings.adventure = int(user.qSettings.adventure) + correct_value
 
     if genre_id == DOCUMENTARY:
-        if not int(user.qSettings.documentary) > 9 or not int(user.qSettings.documentary) < 1:
+        if not int(user.qSettings.documentary) > 9 and not int(user.qSettings.documentary) < 1:
             user.qSettings.documentary = int(user.qSettings.documentary) + correct_value
 
     if genre_id == DRAMA:
-        if not int(user.qSettings.drama) > 9 or not int(user.qSettings.drama) < 1:
+        if not int(user.qSettings.drama) > 9 and not int(user.qSettings.drama) < 1:
             user.qSettings.drama = int(user.qSettings.drama) + correct_value
 
     if genre_id == FAMILY:
-        if not int(user.qSettings.family) > 9 or not int(user.qSettings.family) < 1:
+        if not int(user.qSettings.family) > 9 and not int(user.qSettings.family) < 1:
             user.qSettings.family = int(user.qSettings.family) + correct_value
 
     if genre_id == FANTASY:
-        if not int(user.qSettings.fantasy) > 9 or not int(user.qSettings.fantasy) < 1:
+        if not int(user.qSettings.fantasy) > 9 and not int(user.qSettings.fantasy) < 1:
             user.qSettings.fantasy = int(user.qSettings.fantasy) + correct_value
 
     if genre_id == HISTORY:
-        if not int(user.qSettings.history) > 9 or not int(user.qSettings.history) < 1:
+        if not int(user.qSettings.history) > 9 and not int(user.qSettings.history) < 1:
             user.qSettings.history = int(user.qSettings.history) + correct_value
 
     if genre_id == HORROR:
-        if not int(user.qSettings.horror) > 9 or not int(user.qSettings.horror) < 1:
+        if not int(user.qSettings.horror) > 9 and not int(user.qSettings.horror) < 1:
             user.qSettings.horror = int(user.qSettings.horror) + correct_value
 
     if genre_id == MUSIC:
-        if not int(user.qSettings.music) > 9 or not int(user.qSettings.music) < 1:
+        if not int(user.qSettings.music) > 9 and not int(user.qSettings.music) < 1:
             user.qSettings.music = int(user.qSettings.music) + correct_value
 
     if genre_id == MYSTERY:
-        if not int(user.qSettings.mystery) > 9 or not int(user.qSettings.mystery) < 1:
+        if not int(user.qSettings.mystery) > 9 and not int(user.qSettings.mystery) < 1:
             user.qSettings.mystery = int(user.qSettings.mystery) + correct_value
 
     if genre_id == ROMANCE:
-        if not int(user.qSettings.romance) > 9 or not int(user.qSettings.romance) < 1:
+        if not int(user.qSettings.romance) > 9 and not int(user.qSettings.romance) < 1:
             user.qSettings.romance = int(user.qSettings.romance) + correct_value
 
     if genre_id == SCIENCE_FICTION:
-        if not int(user.qSettings.science_fiction) > 9 or not int(user.qSettings.science_fiction) < 1:
+        if not int(user.qSettings.science_fiction) > 9 and not int(user.qSettings.science_fiction) < 1:
             user.qSettings.science_fiction = int(user.qSettings.science_fiction) + correct_value
 
     if genre_id == TV_MOVIE:
-        if not int(user.qSettings.tv_movie) > 9 or not int(user.qSettings.tv_movie) < 1:
+        if not int(user.qSettings.tv_movie) > 9 and not int(user.qSettings.tv_movie) < 1:
             user.qSettings.tv_movie = int(user.qSettings.tv_movie) + correct_value
 
     if genre_id == THRILLER:
-        if not int(user.qSettings.thriller) > 9 or not int(user.qSettings.thriller) < 1:
+        if not int(user.qSettings.thriller) > 9 and not int(user.qSettings.thriller) < 1:
             user.qSettings.thriller = int(user.qSettings.thriller) + correct_value
 
     if genre_id == WAR:
-        if not int(user.qSettings.war) > 9 or not int(user.qSettings.war) < 1:
+        if not int(user.qSettings.war) > 9 and not int(user.qSettings.war) < 1:
             user.qSettings.war = int(user.qSettings.war) + correct_value
 
     if genre_id == WESTERN:
-        if not int(user.qSettings.western) > 9 or not int(user.qSettings.western) < 1:
+        if not int(user.qSettings.western) > 9 and not int(user.qSettings.western) < 1:
             user.qSettings.western = int(user.qSettings.western) + correct_value
 
     return
@@ -711,7 +701,8 @@ def call_stat(message):
            '/watch_later_list - список фильмов "Посмотреть позже"\n' \
            '/watched_list - список просмотренных фильмов\n' \
            '/trash_list - список непонравившихся фильмов\n' \
-           '/query_settings_list - сбросить настройки страны, даты и рейтинга\n' \
+           '/nice_list - список непонравившихся фильмов\n' \
+           '/query_settings_list - показать текущие параметры поиска\n' \
            '/menu - вернуться в меню'
 
     keyboard = telebot.types.ReplyKeyboardMarkup(True)
@@ -721,11 +712,9 @@ def call_stat(message):
 # ------------------------------------------------   WATCH LATER LIST    -----------------------------------#
 
 @bot.message_handler(commands=['watch_later_list'])
-def ask_country(message):
+def watch_later_list(message):
     user = user_dict[message.chat.id]
     movie_list = 'Список "Посмотреть позже":\n'
-    for movie in user.movies:
-        print(movie.movie_id)
 
     for movie in user.movies:
         if movie.watched is False and movie.enjoy is True:
@@ -735,6 +724,97 @@ def ask_country(message):
             print(current_movie)
             movie_list = movie_list + current_movie + '\n'
     bot.send_message(message.chat.id, movie_list)
+    call_stat(message)
+
+
+# ------------------------------------------------   WATCHED LIST    -----------------------------------#
+
+@bot.message_handler(commands=['watched_list'])
+def watched_list(message):
+    user = user_dict[message.chat.id]
+    movie_list = 'Список просмотренных фильмов:\n'
+
+    for movie in user.movies:
+        if movie.watched is True:
+            query_results = tmdb.Movies(movie.movie_id)
+            query_results.info()
+            current_movie = query_results.title
+            print(current_movie)
+            movie_list = movie_list + current_movie + '\n'
+    bot.send_message(message.chat.id, movie_list)
+    call_stat(message)
+
+
+# ------------------------------------------------   TRASH LIST    -----------------------------------#
+
+@bot.message_handler(commands=['trash_list'])
+def trash_list(message):
+    user = user_dict[message.chat.id]
+    movie_list = 'Список непонравившихся фильмов:\n'
+
+    for movie in user.movies:
+        if movie.enjoy is False:
+            query_results = tmdb.Movies(movie.movie_id)
+            query_results.info()
+            current_movie = query_results.title
+            print(current_movie)
+            movie_list = movie_list + current_movie + '\n'
+    bot.send_message(message.chat.id, movie_list)
+    call_stat(message)
+
+
+# ------------------------------------------------   Nice LIST    -----------------------------------#
+
+@bot.message_handler(commands=['nice_list'])
+def nice_list(message):
+    user = user_dict[message.chat.id]
+    movie_list = 'Список понравившихся фильмов:\n'
+
+    for movie in user.movies:
+        if movie.enjoy is True:
+            query_results = tmdb.Movies(movie.movie_id)
+            query_results.info()
+            current_movie = query_results.title
+            print(current_movie)
+            movie_list = movie_list + current_movie + '\n'
+    bot.send_message(message.chat.id, movie_list)
+    call_stat(message)
+
+
+# ------------------------------------------------   QUERY SETTINGS LIST    -----------------------------------#
+
+@bot.message_handler(commands=['query_settings_list'])
+def query_settings_list(message):
+    user = user_dict[message.chat.id]
+    answer = 'Текущие параметры поиска:\n'
+    year = 'Год: ' + str(user.qSettings.year) + '\n'
+    country = 'Страна: ' + str(user.qSettings.country) + '\n'
+    rating = 'Минимальный рейтинг: ' + str(user.qSettings.rating) + '\n' + '\n'
+
+    genres_stat = 'Рейтинг жанров: ' + '\n' \
+                  + 'Экшн: ' + str(user.qSettings.action) + '\n' \
+                  + 'Приключения: ' + str(user.qSettings.adventure) + '\n' \
+                  + 'Анимация: ' + str(user.qSettings.animation) + '\n' \
+                  + 'Комедия: ' + str(user.qSettings.comedy) + '\n' \
+                  + 'Криминал: ' + str(user.qSettings.crime) + '\n' \
+                  + 'Документальный: ' + str(user.qSettings.documentary) + '\n' \
+                  + 'Драма: ' + str(user.qSettings.drama) + '\n' \
+                  + 'Семейный: ' + str(user.qSettings.family) + '\n' \
+                  + 'Фэнтази: ' + str(user.qSettings.fantasy) + '\n' \
+                  + 'Исторический: ' + str(user.qSettings.history) + '\n' \
+                  + 'Хоррор: ' + str(user.qSettings.horror) + '\n' \
+                  + 'Музыкальный: ' + str(user.qSettings.music) + '\n' \
+                  + 'Мистика: ' + str(user.qSettings.mystery) + '\n' \
+                  + 'Романтический: ' + str(user.qSettings.romance) + '\n' \
+                  + 'Научная фантастика: ' + str(user.qSettings.science_fiction) + '\n' \
+                  + 'ТВ-шоу: ' + str(user.qSettings.tv_movie) + '\n' \
+                  + 'Триллер: ' + str(user.qSettings.thriller) + '\n' \
+                  + 'Военный: ' + str(user.qSettings.war) + '\n' \
+                  + 'Вестерн: ' + str(user.qSettings.western)
+
+    answer = answer + year + country + rating + genres_stat
+
+    bot.send_message(message.chat.id, answer)
     call_stat(message)
 
 
