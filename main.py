@@ -381,12 +381,12 @@ def get_genres_science_fiction(message):
 
 def get_genres_tv_movie(message):
     user = user_dict[message.chat.id]
-    user.qSettings.science_fiction = message.text
+    user.qSettings.tv_movie = message.text
 
-    if not user.qSettings.science_fiction.isdigit() or int(user.qSettings.science_fiction) > 10 or int(
-            user.qSettings.science_fiction) < 0:
+    if not user.qSettings.tv_movie.isdigit() or int(user.qSettings.tv_movie) > 10 or int(
+            user.qSettings.tv_movie) < 0:
         bot.reply_to(message, 'Оцените от 0 до 10. Ваша оценка?')
-        bot.register_next_step_handler(message, get_genres_science_fiction)
+        bot.register_next_step_handler(message, get_genres_tv_movie)
         return
     bot.send_message(message.chat.id, 'Как вы оцените жанр "Триллер"?')
     bot.register_next_step_handler(message, get_genres_thriller)
