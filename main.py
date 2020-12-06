@@ -2,12 +2,16 @@ import telebot
 from telebot import types
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
-import psycopg2
 import pycountry
 import random
 from validate_email import validate_email
 import tmdbsimple as tmdb
 from requests import get
+from pymongo import MongoClient
+
+cluster = MongoClient("mongodb+srv://root:root@cluster0.gq3ya.mongodb.net/bot_data?retryWrites=true&w=majority")
+db = cluster["bot_data"]
+collection = db["bot_collection"]
 
 tmdb.API_KEY = '68c876f1625913a48af726dd8b1fb00d'
 
@@ -33,14 +37,6 @@ WAR = 10752
 WESTERN = 37
 ############
 
-
-conn = psycopg2.connect(database="kinobotDB",
-                        user="postgres",
-                        password="6001",
-                        host="127.0.0.1",
-                        port="5432"
-                        )
-cursor = conn.cursor()
 
 bot = telebot.TeleBot('1396092736:AAFXQ1JiGeZRpsVhxG7eOGmCQ1jYQaFF21k')
 user_dict = {}
@@ -429,6 +425,8 @@ def get_genres_western(message):
         return
 
     bot.send_message(message.chat.id, 'Отлично. Калибровка пройдена!')
+
+    create_user(user)
     main_menu(message)
 
 
@@ -545,6 +543,7 @@ def print_suggestion(message, discover):
     # ------------------------------------------------   TRASH MOVIE    -----------------------------------#
     @bot.message_handler(commands=['trash'])
     def call_trash(message):
+        # user = user_dict[message.chat.id]
         movie_id = CurrentMovie.id
         type_of_correction = 'decrease'
         watched = False
@@ -555,6 +554,7 @@ def print_suggestion(message, discover):
 
         new_movie = Movie(movie_id, watched, enjoy)
         user.movies.append(new_movie)
+        add_film(user_dict[message.chat.id], new_movie)
         main_menu(message)
 
     # ------------------------------------------------   WATCH LATER MOVIE    -----------------------------------#
@@ -920,6 +920,42 @@ def callback_worker(call):
     if call.data == "no":
         bot.send_message(call.message.chat.id, "Как вас зовут?")
         bot.register_next_step_handler(call.message, get_name)
+
+
+
+def create_user(user):
+    print(user.name)
+    request_user = [
+        {
+        "_chat_id" : user.chat_id,
+        "name" : user.name, 
+        "mail" : user.mail,
+        "password" : "root",
+        "qSettings" : { 
+            "action" : user.qSettings.action,
+            "adventure" : user.qSettings.adventure,
+            "animation" : user.qSettings.animation,
+            "comedy" : user.qSettings.comedy
+         }
+        }
+    ]
+    collection.insert_many(request_user)
+
+def get_user(): 
+    print()
+
+def add_film(user, movie):
+    # print()
+    collection.update_many({"chat_id" : user.chat_id}, {'$addToSet': { "movies" : {'$each' : [{"movie_id" : movie.movie_id, "watched" : movie.watched, "enjoy" : movie.enjoy}] }}})
+
+def get_films():
+    print()
+
+def update_settings(user, qSettings):
+    print()
+
+def get_settings():
+    print()
 
 
 def print_hi(name):
