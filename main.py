@@ -543,7 +543,6 @@ def print_suggestion(message, discover):
     # ------------------------------------------------   TRASH MOVIE    -----------------------------------#
     @bot.message_handler(commands=['trash'])
     def call_trash(message):
-        # user = user_dict[message.chat.id]
         movie_id = CurrentMovie.id
         type_of_correction = 'decrease'
         watched = False
@@ -553,8 +552,9 @@ def print_suggestion(message, discover):
             weights_correction(message, type_of_correction, genre_id)
 
         new_movie = Movie(movie_id, watched, enjoy)
+        user = user_dict[message.chat.id]
         user.movies.append(new_movie)
-        add_film(user_dict[message.chat.id], new_movie)
+        add_film(user, new_movie)
         main_menu(message)
 
     # ------------------------------------------------   WATCH LATER MOVIE    -----------------------------------#
@@ -569,7 +569,9 @@ def print_suggestion(message, discover):
             weights_correction(message, type_of_correction, genre_id)
 
         new_movie = Movie(movie_id, watched, enjoy)
+        user = user_dict[message.chat.id]
         user.movies.append(new_movie)
+        add_film(user, new_movie)
         main_menu(message)
 
     # ---------------------------------------------   watched And its trash MOVIE    --------------------------------#
@@ -584,7 +586,9 @@ def print_suggestion(message, discover):
             weights_correction(message, type_of_correction, genre_id)
 
         new_movie = Movie(movie_id, watched, enjoy)
+        user = user_dict[message.chat.id]
         user.movies.append(new_movie)
+        add_film(user, new_movie)
         main_menu(message)
 
     # ---------------------------------------------   watched And its nice MOVIE    --------------------------------#
@@ -601,7 +605,9 @@ def print_suggestion(message, discover):
             weights_correction(message, type_of_correction, genre_id)
 
         new_movie = Movie(movie_id, watched, enjoy)
+        user = user_dict[message.chat.id]
         user.movies.append(new_movie)
+        add_film(user, new_movie)
         main_menu(message)
 
 
@@ -946,7 +952,7 @@ def get_user():
 
 def add_film(user, movie):
     # print()
-    collection.update_many({"chat_id" : user.chat_id}, {'$addToSet': { "movies" : {'$each' : [{"movie_id" : movie.movie_id, "watched" : movie.watched, "enjoy" : movie.enjoy}] }}})
+    collection.update_many({"_chat_id" : user.chat_id}, {'$addToSet': { "movies" : {'$each' : [{"movie_id" : movie.movie_id, "watched" : movie.watched, "enjoy" : movie.enjoy}] }}})
 
 def get_films():
     print()
