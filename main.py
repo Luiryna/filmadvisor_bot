@@ -856,6 +856,7 @@ def ask_country(message):
 
 def call_country(message):
     user = user_dict[message.chat.id]
+    update_country(user, pycountry.countries.get(name=message.text).alpha_2)
     user.qSettings.country = pycountry.countries.get(name=message.text).alpha_2
     bot.send_message(message.chat.id, 'Принято!')
     call_settings(message)
@@ -870,6 +871,7 @@ def ask_year(message):
 
 def call_year(message):
     user = user_dict[message.chat.id]
+    update_year(user, message.text)
     user.qSettings.year = message.text
     if not user.qSettings.year.isdigit() or int(user.qSettings.year) < 1940:
         msg = bot.reply_to(message, 'Год должен быть числом, больше 1940. Введите год производства фильма')
@@ -888,6 +890,7 @@ def ask_rate(message):
 
 def call_rate(message):
     user = user_dict[message.chat.id]
+    update_rating(user, message.text)
     user.qSettings.rating = message.text
     if not user.qSettings.rating.isdigit() or int(user.qSettings.rating) > 10 or int(user.qSettings.rating) < 0:
         msg = bot.reply_to(message, 'Допускается только число от 0 до 10. Введите минимально допустимый рейтинг фильма')
@@ -928,7 +931,6 @@ def callback_worker(call):
         bot.register_next_step_handler(call.message, get_name)
 
 
-
 def create_user(user):
     print(user.name)
     request_user = [
@@ -938,30 +940,52 @@ def create_user(user):
         "mail" : user.mail,
         "password" : "root",
         "qSettings" : { 
+            "country" : user.qSettings.country,
+            "year" : user.qSettings.year,
+            "rating" : user.qSettings.rating,
+
             "action" : user.qSettings.action,
             "adventure" : user.qSettings.adventure,
             "animation" : user.qSettings.animation,
-            "comedy" : user.qSettings.comedy
+            "comedy" : user.qSettings.comedy,
+            "crime" : user.qSettings.crime,
+            "documentary" : user.qSettings.documentary,
+            "drama" : user.qSettings.drama,
+            "family" : user.qSettings.family,
+            "fantasy" : user.qSettings.fantasy,
+            "history" : user.qSettings.history,
+            "horror" : user.qSettings.horror,
+            "music" : user.qSettings.music,
+            "mystery" : user.qSettings.mystery,
+            "romance" : user.qSettings.romance,
+            "science_fiction" : user.qSettings.science_fiction,
+            "tv_movie" : user.qSettings.tv_movie,
+            "thriller" : user.qSettings.thriller,
+            "war" : user.qSettings.war,
+            "western" : user.qSettings.western
          }
         }
     ]
     collection.insert_many(request_user)
 
-def get_user(): 
-    print()
+
 
 def add_film(user, movie):
-    # print()
     collection.update_many({"_chat_id" : user.chat_id}, {'$addToSet': { "movies" : {'$each' : [{"movie_id" : movie.movie_id, "watched" : movie.watched, "enjoy" : movie.enjoy}] }}})
 
-def get_films():
+def update_rating(user, rating):
+    collection.update_one({"_chat_id" : user.chat_id, "qSettings.rating" : user.qSettings.rating}, { '$set' : {"qSettings.rating" : rating }})
+
+def update_year(user, year):
+    collection.update_one({"_chat_id" : user.chat_id, "qSettings.year" : user.qSettings.year}, { '$set' : {"qSettings.year" : year }})
+
+def update_country(user, country):
+    collection.update_one({"_chat_id" : user.chat_id, "qSettings.country" : user.qSettings.country}, { '$set' : {"qSettings.country" : country }})
+
+def update_settings(user):
+    # collection.update_many()
     print()
 
-def update_settings(user, qSettings):
-    print()
-
-def get_settings():
-    print()
 
 
 def print_hi(name):
